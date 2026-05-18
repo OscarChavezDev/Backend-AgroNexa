@@ -1,0 +1,9 @@
+Flask
+Flask-Cors
+Flask-JWT-Extended
+Flask-Bcrypt
+pymongo
+python-dotenv
+cloudinary
+marshmallow
+pytest
