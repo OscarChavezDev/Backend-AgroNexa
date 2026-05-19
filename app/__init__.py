@@ -44,6 +44,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    app.url_map.strict_slashes = False
     CORS(app, origins=app.config["CORS_ORIGINS"])
 
     Swagger(app, config=SWAGGER_CONFIG, template=SWAGGER_TEMPLATE)
