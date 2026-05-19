@@ -54,15 +54,3 @@ def soft_delete(muestra_id, user_id):
     return result.matched_count > 0
 
 
-def push_imagen(muestra_id, imagen_doc):
-    get_db().muestras.update_one(
-        {"_id": ObjectId(muestra_id)},
-        {"$push": {"imagenes": imagen_doc}, "$set": {"updatedAt": now_utc()}},
-    )
-
-
-def pull_imagen(muestra_id, imagen_id):
-    get_db().muestras.update_one(
-        {"_id": ObjectId(muestra_id)},
-        {"$pull": {"imagenes": {"_id": ObjectId(imagen_id)}}, "$set": {"updatedAt": now_utc()}},
-    )

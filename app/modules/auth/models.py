@@ -1,6 +1,6 @@
 from app.utils.helpers import now_utc
 
-ROLES = ("productor", "asociacion", "institucion")
+ROLES = ("productor", "asociacion", "institucion", "admin")
 PLANES = ("basico", "plus", "asociacion", "institucional")
 
 

@@ -4,13 +4,14 @@ from app.utils.helpers import serialize_doc
 from app.utils.validators import required_fields
 
 UPDATABLE_FIELDS = {
-    "nombre", "ubicacion", "area", "unidadArea", "cultivo",
-    "variedad", "edadCultivo", "cantidadPlantas", "sistemaCultivo", "referencia",
+    "nombre", "cultivo", "ubicacion", "referencia",
+    "areaAproximada", "unidadArea", "observaciones",
+    "variedad", "edadCultivo", "cantidadPlantas", "sistemaCultivo",
 }
 
 
 def create_parcela(user_id, data):
-    missing = required_fields(data, ["nombre", "ubicacion"])
+    missing = required_fields(data, ["nombre", "cultivo", "ubicacion", "referencia"])
     if missing:
         return None, f"Campos requeridos: {', '.join(missing)}"
 

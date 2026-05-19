@@ -6,31 +6,33 @@ def _match(sintomas, *keywords):
     return any(k in s for k in keywords)
 
 
-def _evaluar_enfermedad(parte, sintomas, datos_suelo):
-    humedad = (datos_suelo.get("humedad") or "").lower()
+def _evaluar_enfermedad(parte, sintomas, datos_sensor):
+    humedad = datos_sensor.get("humedadSuelo")
+    humedad_alta = isinstance(humedad, (int, float)) and humedad > 70
 
     if parte in ("fruto",) and _match(sintomas, "polvo blanco", "fruto momificado"):
         return "moniliasis", 0.85
 
-    if parte in ("rama", "brote") and _match(sintomas, "brotes deformados", "ramas anormales"):
+    if parte in ("tallo", "brote") and _match(sintomas, "brotes deformados", "ramas secas"):
         return "escoba de bruja", 0.80
 
     if (
         parte in ("fruto",)
         and _match(sintomas, "manchas oscuras")
         and _match(sintomas, "pudricion")
-        and humedad == "alta"
+        and humedad_alta
     ):
         return "pudricion parda", 0.78
 
     return "no determinado", 0.40
 
 
-def _evaluar_riesgo(nivel_afectacion, datos_suelo, sintomas):
-    humedad = (datos_suelo.get("humedad") or "").lower()
+def _evaluar_riesgo(nivel_afectacion, datos_sensor, sintomas):
+    humedad = datos_sensor.get("humedadSuelo")
+    humedad_alta = isinstance(humedad, (int, float)) and humedad > 70
     criticos = {s.lower() for s in sintomas} & SINTOMAS_CRITICOS
 
-    if nivel_afectacion == "severo" or humedad == "alta" or len(criticos) >= 2:
+    if nivel_afectacion == "severo" or humedad_alta or len(criticos) >= 2:
         return "alto"
     if nivel_afectacion == "moderado" or len(criticos) == 1:
         return "moderado"
@@ -68,16 +70,16 @@ RECOMENDACIONES = {
 def generar_diagnostico(muestra):
     parte = (muestra.get("parteAfectada") or "").lower()
     sintomas = muestra.get("sintomas") or []
-    datos_suelo = muestra.get("datosSuelo") or {}
+    datos_sensor = muestra.get("datosSensor") or {}
     nivel_afectacion = (muestra.get("nivelAfectacion") or "leve").lower()
 
-    enfermedad, confianza = _evaluar_enfermedad(parte, sintomas, datos_suelo)
-    riesgo = _evaluar_riesgo(nivel_afectacion, datos_suelo, sintomas)
+    enfermedad, confianza = _evaluar_enfermedad(parte, sintomas, datos_sensor)
+    riesgo = _evaluar_riesgo(nivel_afectacion, datos_sensor, sintomas)
     recomendaciones = RECOMENDACIONES.get(enfermedad, RECOMENDACIONES["no determinado"])
 
     motivo = (
         f"Análisis basado en parte afectada '{parte}', "
-        f"síntomas registrados y datos del suelo."
+        f"síntomas registrados y datos del sensor."
     )
 
     return {

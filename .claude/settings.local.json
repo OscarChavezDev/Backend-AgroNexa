@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import flask_jwt_extended; print\\(flask_jwt_extended.__version__\\)\")",
+      "Bash(dir venv *)",
+      "Bash(dir .venv)",
+      "Bash(where python *)"
+    ]
+  }
+}

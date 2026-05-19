@@ -4,6 +4,26 @@ from app.utils.response import success_response, error_response
 
 
 def generar_diagnostico(muestra_id):
+    """
+    Generar diagnóstico para una muestra
+    ---
+    tags:
+      - Diagnóstico
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: muestra_id
+        type: string
+        required: true
+    responses:
+      201:
+        description: Diagnóstico generado correctamente
+      400:
+        description: La muestra ya tiene un diagnóstico
+      404:
+        description: Muestra no encontrada
+    """
     user_id = get_jwt_identity()
     result, err = generar(muestra_id, user_id)
     if err:
@@ -12,6 +32,24 @@ def generar_diagnostico(muestra_id):
 
 
 def obtener_diagnostico(diagnostico_id):
+    """
+    Obtener un diagnóstico por ID
+    ---
+    tags:
+      - Diagnóstico
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: diagnostico_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Diagnóstico obtenido
+      404:
+        description: Diagnóstico no encontrado
+    """
     result, err = get_diagnostico(diagnostico_id)
     if err:
         return error_response(err, status=404)
@@ -19,6 +57,24 @@ def obtener_diagnostico(diagnostico_id):
 
 
 def diagnostico_por_muestra(muestra_id):
+    """
+    Obtener diagnóstico de una muestra
+    ---
+    tags:
+      - Diagnóstico
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: muestra_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Diagnóstico obtenido
+      404:
+        description: Diagnóstico no encontrado
+    """
     user_id = get_jwt_identity()
     result, err = get_diagnostico_by_muestra(muestra_id, user_id)
     if err:

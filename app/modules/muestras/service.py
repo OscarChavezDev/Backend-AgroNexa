@@ -5,13 +5,12 @@ from app.utils.helpers import serialize_doc
 from app.utils.validators import required_fields
 
 UPDATABLE_FIELDS = {
-    "fechaObservacion", "parteAfectada", "etapaCultivo", "nivelAfectacion",
-    "observaciones", "sintomas", "datosSuelo", "datosAmbiente",
+    "parteAfectada", "nivelAfectacion", "sintomas", "observaciones", "datosSensor",
 }
 
 
 def create_muestra(user_id, data):
-    missing = required_fields(data, ["parcelaId", "parteAfectada"])
+    missing = required_fields(data, ["parcelaId", "parteAfectada", "nivelAfectacion", "sintomas"])
     if missing:
         return None, f"Campos requeridos: {', '.join(missing)}"
 

@@ -1,31 +1,33 @@
 from app.utils.helpers import now_utc
 from bson import ObjectId
 
+PARTES_AFECTADAS = ("hoja", "fruto", "tallo", "raiz", "flor", "planta_completa")
+NIVELES_AFECTACION = ("leve", "moderado", "severo")
+SINTOMAS_VALIDOS = (
+    "manchas oscuras", "manchas amarillas", "pudricion", "polvo blanco",
+    "fruto seco", "fruto deformado", "hojas secas", "ramas secas",
+    "brotes deformados", "marchitez", "caida de frutos", "hongos visibles",
+)
+
 
 def build_muestra(user_id, data):
+    sensor = data.get("datosSensor") or {}
     return {
         "parcelaId": ObjectId(data["parcelaId"]),
         "userId": ObjectId(user_id),
-        "fechaObservacion": data.get("fechaObservacion", now_utc()),
-        "parteAfectada": data.get("parteAfectada", ""),
-        "etapaCultivo": data.get("etapaCultivo", ""),
-        "nivelAfectacion": data.get("nivelAfectacion", "leve"),
+        "parteAfectada": data["parteAfectada"],
+        "nivelAfectacion": data["nivelAfectacion"],
+        "sintomas": data["sintomas"],
         "observaciones": data.get("observaciones", ""),
-        "sintomas": data.get("sintomas", []),
-        "datosSuelo": {
-            "ph": data.get("datosSuelo", {}).get("ph"),
-            "nitrogeno": data.get("datosSuelo", {}).get("nitrogeno", ""),
-            "fosforo": data.get("datosSuelo", {}).get("fosforo", ""),
-            "potasio": data.get("datosSuelo", {}).get("potasio", ""),
-            "humedad": data.get("datosSuelo", {}).get("humedad", ""),
+        "datosSensor": {
+            "ph": sensor.get("ph"),
+            "nitrogeno": sensor.get("nitrogeno"),
+            "fosforo": sensor.get("fosforo"),
+            "potasio": sensor.get("potasio"),
+            "humedadSuelo": sensor.get("humedadSuelo"),
+            "temperaturaSuelo": sensor.get("temperaturaSuelo"),
+            "conductividadElectrica": sensor.get("conductividadElectrica"),
         },
-        "datosAmbiente": {
-            "temperatura": data.get("datosAmbiente", {}).get("temperatura"),
-            "humedadAmbiental": data.get("datosAmbiente", {}).get("humedadAmbiental"),
-            "lluviasRecientes": data.get("datosAmbiente", {}).get("lluviasRecientes", False),
-            "sombraExcesiva": data.get("datosAmbiente", {}).get("sombraExcesiva", False),
-        },
-        "imagenes": [],
         "estado": "registrado",
         "createdAt": now_utc(),
         "updatedAt": now_utc(),
