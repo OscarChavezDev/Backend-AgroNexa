@@ -1,7 +1,7 @@
 from flask import request
 from flask_jwt_extended import get_jwt_identity
 from app.modules.users.service import (
-    get_profile, update_profile, list_users, get_user, change_status,
+    get_profile, update_profile, list_users, get_user, change_status, change_password,
 )
 from app.utils.response import success_response, error_response
 
@@ -145,3 +145,49 @@ def cambiar_estado(user_id):
     if err:
         return error_response(err, status=404)
     return success_response("Estado actualizado correctamente", result)
+
+
+def cambiar_contrasena():
+    """
+    Cambiar contraseña del usuario autenticado
+    ---
+    tags:
+      - Usuarios
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - passwordActual
+            - passwordNueva
+          properties:
+            passwordActual:
+              type: string
+            passwordNueva:
+              type: string
+    responses:
+      200:
+        description: Contraseña actualizada correctamente
+      400:
+        description: Contraseña actual incorrecta o datos inválidos
+    """
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+    password_actual = data.get("passwordActual")
+    password_nueva = data.get("passwordNueva")
+
+    if not password_actual or not password_nueva:
+        return error_response("Los campos 'passwordActual' y 'passwordNueva' son requeridos")
+
+    if len(password_nueva) < 6:
+        return error_response("La nueva contraseña debe tener al menos 6 caracteres")
+
+    result, err = change_password(user_id, password_actual, password_nueva)
+    if err:
+        return error_response(err)
+    return success_response("Contraseña actualizada correctamente", result)
+

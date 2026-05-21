@@ -1,6 +1,7 @@
 from app.modules.users import repository as repo
 from app.modules.users.models import UPDATABLE_FIELDS
 from app.utils.helpers import serialize_doc
+from app.extensions.bcrypt import bcrypt
 
 VALID_ESTADOS = ("activo", "inactivo", "suspendido")
 
@@ -46,3 +47,24 @@ def change_status(user_id, estado):
     if not updated:
         return None, "Usuario no encontrado"
     return {"id": user_id}, None
+
+
+def change_password(user_id, current_password, new_password):
+    user = repo.find_by_id(user_id)
+    if not user:
+        return None, "Usuario no encontrado"
+
+    # Verificar contraseña actual
+    if not bcrypt.check_password_hash(user["password"], current_password):
+        return None, "La contraseña actual es incorrecta"
+
+    # Generar hash de la nueva contraseña
+    new_password_hash = bcrypt.generate_password_hash(new_password).decode("utf-8")
+
+    # Actualizar la contraseña en la base de datos
+    updated = repo.update(user_id, {"password": new_password_hash})
+    if not updated:
+        return None, "No se pudo actualizar la contraseña"
+
+    return {"id": user_id}, None
+

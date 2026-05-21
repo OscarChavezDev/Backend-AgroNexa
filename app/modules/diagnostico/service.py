@@ -38,5 +38,5 @@ def get_diagnostico_by_muestra(muestra_id, user_id):
 
     doc = repo.find_by_muestra(muestra_id)
     if not doc:
-        return None, "Esta muestra aún no tiene diagnóstico"
+        return {"diagnostico": None}, None
     return serialize_doc(doc), None
