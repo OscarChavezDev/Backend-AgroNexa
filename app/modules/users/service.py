@@ -1,5 +1,6 @@
 from app.modules.users import repository as repo
 from app.modules.users.models import UPDATABLE_FIELDS
+from app.modules.auth.models import build_role_filter, normalize_role
 from app.utils.helpers import serialize_doc
 from app.extensions.bcrypt import bcrypt
 
@@ -11,6 +12,7 @@ def get_profile(user_id):
     if not user:
         return None, "Usuario no encontrado"
     user.pop("password", None)
+    user["rol"] = normalize_role(user.get("rol"))
     return serialize_doc(user), None
 
 
@@ -25,10 +27,11 @@ def update_profile(user_id, data):
 def list_users(rol=None):
     filters = {}
     if rol:
-        filters["rol"] = rol
+        filters["rol"] = build_role_filter(rol)
     users = repo.find_all(filters)
     for u in users:
         u.pop("password", None)
+        u["rol"] = normalize_role(u.get("rol"))
     return [serialize_doc(u) for u in users], None
 
 
@@ -37,6 +40,7 @@ def get_user(user_id):
     if not user:
         return None, "Usuario no encontrado"
     user.pop("password", None)
+    user["rol"] = normalize_role(user.get("rol"))
     return serialize_doc(user), None
 
 

@@ -71,7 +71,7 @@ def listar_usuarios():
       - in: query
         name: rol
         type: string
-        enum: [productor, asociacion, institucion]
+        enum: [productor, asociacion, institucion, institucional]
     responses:
       200:
         description: Usuarios obtenidos

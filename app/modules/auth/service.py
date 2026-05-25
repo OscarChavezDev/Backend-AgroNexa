@@ -1,7 +1,7 @@
 from flask_jwt_extended import create_access_token
 from app.extensions.bcrypt import bcrypt
 from app.modules.auth.repository import find_by_email, create_user
-from app.modules.auth.models import build_user, ROLES
+from app.modules.auth.models import build_user, normalize_role, ROLES
 from app.utils.validators import is_valid_email, required_fields
 from app.utils.helpers import serialize_doc
 from bson import ObjectId
@@ -15,7 +15,7 @@ def register_user(data):
     if not is_valid_email(data["correo"]):
         return None, "Correo inválido"
 
-    rol = data.get("rol", "productor")
+    rol = normalize_role(data.get("rol", "productor"))
     if rol not in ROLES:
         return None, f"Rol inválido. Debe ser uno de: {', '.join(ROLES)}"
 
@@ -51,7 +51,7 @@ def login_user(data):
         return None, "Cuenta inactiva"
 
     token = create_access_token(identity=str(user["_id"]))
-    return {"token": token, "rol": user["rol"], "plan": user["plan"]}, None
+    return {"token": token, "rol": normalize_role(user["rol"]), "plan": user["plan"]}, None
 
 
 def get_me(user_id):
@@ -60,4 +60,5 @@ def get_me(user_id):
     if not user:
         return None, "Usuario no encontrado"
     user.pop("password", None)
+    user["rol"] = normalize_role(user.get("rol"))
     return serialize_doc(user), None

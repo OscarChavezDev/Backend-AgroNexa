@@ -1,4 +1,5 @@
 from app.database.mongo import get_db
+from app.modules.auth.models import normalize_role
 from app.utils.helpers import serialize_doc, now_utc
 from bson import ObjectId
 
@@ -11,6 +12,7 @@ def list_all_users(filters=None):
     users = list(db.users.find(query, sort=[("createdAt", -1)]))
     for u in users:
         u.pop("password", None)
+        u["rol"] = normalize_role(u.get("rol"))
     return [serialize_doc(u) for u in users], None
 
 
@@ -20,6 +22,7 @@ def get_user_detail(user_id):
     if not user:
         return None, "Usuario no encontrado"
     user.pop("password", None)
+    user["rol"] = normalize_role(user.get("rol"))
     return serialize_doc(user), None
 
 

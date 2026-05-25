@@ -4,6 +4,7 @@ from app.modules.admin.service import (
     list_all_users, get_user_detail, change_user_status,
     delete_user, get_stats,
 )
+from app.modules.auth.models import build_role_filter
 from app.middleware.role_middleware import role_required
 from app.utils.response import success_response, error_response
 
@@ -21,7 +22,7 @@ def listar_usuarios():
       - in: query
         name: rol
         type: string
-        enum: [productor, asociacion, institucion]
+        enum: [productor, asociacion, institucion, institucional]
         description: Filtrar por rol
       - in: query
         name: estado
@@ -38,7 +39,7 @@ def listar_usuarios():
     estado = request.args.get("estado")
     filters = {}
     if rol:
-        filters["rol"] = rol
+        filters["rol"] = build_role_filter(rol)
     if estado:
         filters["estado"] = estado
     result, err = list_all_users(filters)
