@@ -1,6 +1,6 @@
 from flask import request
 from flask_jwt_extended import get_jwt_identity
-from app.modules.auth.service import register_user, login_user, get_me
+from app.modules.auth.service import register_user, login_user, get_me, google_login_user
 from app.utils.response import success_response, error_response
 
 
@@ -108,3 +108,35 @@ def me():
     if err:
         return error_response(err, status=404)
     return success_response("Usuario autenticado", result)
+
+
+def google_login():
+    """
+    Iniciar sesión con Google
+    ---
+    tags:
+      - Auth
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - idToken
+          properties:
+            idToken:
+              type: string
+              example: "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+    responses:
+      200:
+        description: Inicio de sesión exitoso, retorna JWT token
+      400:
+        description: Token inválido o error en la autenticación
+    """
+    data = request.get_json() or {}
+    result, err = google_login_user(data)
+    if err:
+        return error_response(err, status=400)
+    return success_response("Inicio de sesión exitoso con Google", result)
+

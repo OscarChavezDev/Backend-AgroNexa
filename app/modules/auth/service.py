@@ -62,3 +62,65 @@ def get_me(user_id):
     user.pop("password", None)
     user["rol"] = normalize_role(user.get("rol"))
     return serialize_doc(user), None
+
+
+def google_login_user(data):
+    token = data.get("idToken")
+    if not token:
+        return None, "Token de Google es requerido"
+
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+    from app.config.config import Config
+
+    try:
+        # Verificar el token con Google
+        id_info = id_token.verify_oauth2_token(token, google_requests.Request(), Config.GOOGLE_CLIENT_ID)
+
+        # Validar el emisor
+        if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            return None, "Emisor de token inválido"
+
+        email = id_info.get('email')
+        if not email:
+            return None, "No se pudo obtener el correo de Google"
+
+        # Comprobar si el usuario existe
+        user = find_by_email(email)
+        if not user:
+            # Si el usuario no existe, lo creamos
+            nombre = id_info.get('given_name') or 'Usuario'
+            apellido = id_info.get('family_name') or 'Google'
+
+            # El rol por defecto es productor
+            user_doc = build_user(
+                nombre=nombre,
+                apellido=apellido,
+                correo=email,
+                password_hash="",  # Sin contraseña (login por Google)
+                telefono="",
+                rol="productor"
+            )
+            user_doc["googleLogin"] = True
+
+            user_id = create_user(user_doc)
+            user = find_by_email(email)
+        else:
+            user_id = str(user["_id"])
+
+        if user.get("estado") != "activo":
+            return None, "Cuenta inactiva"
+
+        # Generar token JWT de la aplicación
+        app_token = create_access_token(identity=user_id)
+        return {
+            "token": app_token,
+            "rol": normalize_role(user["rol"]),
+            "plan": user.get("plan", "basico")
+        }, None
+
+    except ValueError as e:
+        return None, f"Token de Google inválido: {str(e)}"
+    except Exception as e:
+        return None, f"Error en login de Google: {str(e)}"
+

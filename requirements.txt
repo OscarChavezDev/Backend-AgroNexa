@@ -8,3 +8,4 @@ cloudinary
 marshmallow
 pytest
 flasgger
+google-auth
