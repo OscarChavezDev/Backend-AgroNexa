@@ -1,8 +1,14 @@
+import os
+import base64
+import logging
+
 import cloudinary.uploader
 from bson import ObjectId
 from app.modules.muestras.repository import find_by_id_and_user
 from app.modules.imagenes import repository as repo
 from app.utils.helpers import now_utc, serialize_doc
+
+logger = logging.getLogger(__name__)
 
 TIPOS_IMAGEN = ("hoja", "fruto", "tallo", "planta_completa", "suelo")
 
@@ -56,6 +62,58 @@ def listar_imagenes(muestra_id, user_id):
         }
         for img in imagenes
     ], None
+
+
+PROMPT_VALIDACION = """Analiza esta imagen y determina si está relacionada con agricultura, cultivos, plantas o diagnóstico fitosanitario.
+
+RESPONDE SOLO con JSON válido, sin texto extra ni markdown:
+{
+  "relevante": true,
+  "motivo": "descripción breve de lo que muestra la imagen"
+}
+
+Considera RELEVANTE (true): plantas, hojas, frutos, cultivos, suelo agrícola, síntomas en vegetación, raíces, tallos.
+Considera NO RELEVANTE (false): personas, selfies, animales sin relación agrícola, objetos, paisajes urbanos, documentos, capturas de pantalla."""
+
+
+def validar_imagen_agricola(imagen_bytes, mime_type):
+    """
+    Usa Groq para verificar si la imagen es relevante para diagnóstico agrícola.
+    Si la IA no está disponible, retorna relevante=True para no bloquear al usuario.
+    """
+    api_key = os.getenv("GROQ_API_KEY", "")
+    if not api_key:
+        return {"relevante": True, "motivo": "Validación no disponible (sin clave de IA)"}, None
+
+    try:
+        from groq import Groq
+        from app.modules.diagnostico.ai_service import _extraer_json
+
+        img_b64 = base64.b64encode(imagen_bytes).decode("utf-8")
+        model_name = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+
+        client = Groq(api_key=api_key)
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": [
+                {"type": "text", "text": PROMPT_VALIDACION},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{img_b64}"}}
+            ]}],
+            temperature=0.1,
+            max_tokens=150,
+        )
+
+        texto = response.choices[0].message.content.strip()
+        resultado = _extraer_json(texto)
+        if resultado is None:
+            logger.warning("Validación IA: respuesta no JSON — %s", texto[:100])
+            return {"relevante": True, "motivo": "No se pudo analizar"}, None
+
+        return resultado, None
+
+    except Exception as e:
+        logger.warning("Validación IA falló (no bloqueante): %s", e)
+        return {"relevante": True, "motivo": "Validación no disponible"}, None
 
 
 def eliminar_imagen(user_id, imagen_id, muestra_id):

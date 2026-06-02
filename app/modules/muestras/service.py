@@ -10,7 +10,7 @@ UPDATABLE_FIELDS = {
 
 
 def create_muestra(user_id, data):
-    missing = required_fields(data, ["parcelaId", "parteAfectada", "nivelAfectacion", "sintomas"])
+    missing = required_fields(data, ["parcelaId", "parteAfectada", "nivelAfectacion"])
     if missing:
         return None, f"Campos requeridos: {', '.join(missing)}"
 

@@ -1,6 +1,6 @@
 from flask import request
 from flask_jwt_extended import get_jwt_identity
-from app.modules.imagenes.service import subir_imagen, listar_imagenes, eliminar_imagen
+from app.modules.imagenes.service import subir_imagen, listar_imagenes, eliminar_imagen, validar_imagen_agricola
 from app.utils.response import success_response, error_response
 
 
@@ -77,6 +77,38 @@ def listar(muestra_id):
     if err:
         return error_response(err, status=404)
     return success_response("Imágenes obtenidas", result)
+
+
+def validar():
+    """
+    Validar si una imagen es relevante para diagnóstico agrícola
+    ---
+    tags:
+      - Imágenes
+    security:
+      - Bearer: []
+    consumes:
+      - multipart/form-data
+    parameters:
+      - in: formData
+        name: file
+        type: file
+        required: true
+    responses:
+      200:
+        description: Resultado de validación
+    """
+    file = request.files.get("file")
+    if not file:
+        return error_response("No se recibió ningún archivo")
+
+    imagen_bytes = file.read()
+    mime_type = file.content_type or "image/jpeg"
+
+    resultado, err = validar_imagen_agricola(imagen_bytes, mime_type)
+    if err:
+        return error_response(err)
+    return success_response("Validación completada", resultado)
 
 
 def eliminar(imagen_id):
