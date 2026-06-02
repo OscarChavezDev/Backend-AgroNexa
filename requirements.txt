@@ -9,3 +9,6 @@ marshmallow
 pytest
 flasgger
 google-auth
+google-generativeai
+requests
+groq

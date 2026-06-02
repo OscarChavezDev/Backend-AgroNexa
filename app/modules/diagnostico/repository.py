@@ -20,3 +20,7 @@ def find_all_by_user(user_id):
         {"userId": ObjectId(user_id)},
         sort=[("createdAt", -1)],
     ))
+
+
+def delete_by_muestra(muestra_id):
+    get_db().diagnosticos.delete_many({"muestraId": ObjectId(muestra_id)})
