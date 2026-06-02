@@ -20,6 +20,13 @@ def update_profile(user_id, data):
     fields = {k: v for k, v in data.items() if k in UPDATABLE_FIELDS}
     if not fields:
         return None, "No hay campos válidos para actualizar"
+
+    if 'rol' in fields:
+        from app.modules.auth.models import normalize_role, ROLES
+        fields['rol'] = normalize_role(fields['rol'])
+        if fields['rol'] not in ('productor', 'asociacion', 'institucion'):
+            return None, "Rol inválido. Debe ser: productor, asociacion o institucion"
+
     repo.update(user_id, fields)
     return {"id": user_id}, None
 

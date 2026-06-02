@@ -2,7 +2,7 @@ from flask import request
 from flask_jwt_extended import get_jwt_identity
 from app.modules.admin.service import (
     list_all_users, get_user_detail, change_user_status,
-    delete_user, get_stats,
+    delete_user, get_stats, get_user_parcelas,
 )
 from app.modules.auth.models import build_role_filter
 from app.middleware.role_middleware import role_required
@@ -140,6 +140,30 @@ def eliminar_usuario(user_id):
     if err:
         return error_response(err, status=404)
     return success_response("Usuario eliminado correctamente", result)
+
+
+@role_required("admin")
+def parcelas_usuario(user_id):
+    """
+    Parcelas de un usuario con conteos de muestras y diagnósticos
+    ---
+    tags:
+      - Admin
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: user_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Parcelas con estadísticas
+    """
+    result, err = get_user_parcelas(user_id)
+    if err:
+        return error_response(err, status=404)
+    return success_response("Parcelas del usuario obtenidas", result)
 
 
 @role_required("admin")

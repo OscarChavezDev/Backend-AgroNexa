@@ -1,1 +1,1 @@
-UPDATABLE_FIELDS = {"nombre", "apellido", "telefono"}
+UPDATABLE_FIELDS = {"nombre", "apellido", "telefono", "rol"}

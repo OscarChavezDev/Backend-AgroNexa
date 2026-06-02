@@ -74,6 +74,11 @@ def create_app():
     app.register_blueprint(suscripciones_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
 
+    @app.after_request
+    def set_coop_header(response):
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+        return response
+
     @app.get("/api/config/maps")
     def maps_config():
         """

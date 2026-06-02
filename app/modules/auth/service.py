@@ -1,6 +1,6 @@
 from flask_jwt_extended import create_access_token
 from app.extensions.bcrypt import bcrypt
-from app.modules.auth.repository import find_by_email, create_user
+from app.modules.auth.repository import find_by_email, create_user, increment_login
 from app.modules.auth.models import build_user, normalize_role, ROLES
 from app.utils.validators import is_valid_email, required_fields
 from app.utils.helpers import serialize_doc
@@ -51,6 +51,7 @@ def login_user(data):
         return None, "Cuenta inactiva"
 
     token = create_access_token(identity=str(user["_id"]))
+    increment_login(str(user["_id"]))
     return {"token": token, "rol": normalize_role(user["rol"]), "plan": user["plan"]}, None
 
 
@@ -69,11 +70,11 @@ def google_login_user(data):
     if not token:
         return None, "Token de Google es requerido"
 
-    from google.oauth2 import id_token
-    from google.auth.transport import requests as google_requests
-    from app.config.config import Config
-
     try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+        from app.config.config import Config
+
         # Verificar el token con Google
         id_info = id_token.verify_oauth2_token(token, google_requests.Request(), Config.GOOGLE_CLIENT_ID)
 
@@ -105,18 +106,22 @@ def google_login_user(data):
 
             user_id = create_user(user_doc)
             user = find_by_email(email)
+            is_new_user = True
         else:
             user_id = str(user["_id"])
+            is_new_user = False
 
         if user.get("estado") != "activo":
             return None, "Cuenta inactiva"
 
         # Generar token JWT de la aplicación
         app_token = create_access_token(identity=user_id)
+        increment_login(user_id)
         return {
             "token": app_token,
             "rol": normalize_role(user["rol"]),
-            "plan": user.get("plan", "basico")
+            "plan": user.get("plan", "basico"),
+            "isNewUser": is_new_user
         }, None
 
     except ValueError as e:
