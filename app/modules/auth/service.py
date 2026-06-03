@@ -1,10 +1,11 @@
-from flask_jwt_extended import create_access_token
-from app.extensions.bcrypt import bcrypt
-from app.modules.auth.repository import find_by_email, create_user, increment_login
-from app.modules.auth.models import build_user, normalize_role, ROLES
-from app.utils.validators import is_valid_email, required_fields
-from app.utils.helpers import serialize_doc
 from bson import ObjectId
+from flask_jwt_extended import create_access_token
+
+from app.extensions.bcrypt import bcrypt
+from app.modules.auth.models import ROLES, build_user, normalize_role
+from app.modules.auth.repository import create_user, find_by_email, increment_login
+from app.utils.helpers import serialize_doc
+from app.utils.validators import is_valid_email, required_fields
 
 
 def register_user(data):
@@ -13,14 +14,14 @@ def register_user(data):
         return None, f"Campos requeridos: {', '.join(missing)}"
 
     if not is_valid_email(data["correo"]):
-        return None, "Correo inválido"
+        return None, "Correo invalido"
 
     rol = normalize_role(data.get("rol", "productor"))
     if rol not in ROLES:
-        return None, f"Rol inválido. Debe ser uno de: {', '.join(ROLES)}"
+        return None, f"Rol invalido. Debe ser uno de: {', '.join(ROLES)}"
 
     if find_by_email(data["correo"]):
-        return None, "El correo ya está registrado"
+        return None, "El correo ya esta registrado"
 
     password_hash = bcrypt.generate_password_hash(data["password"]).decode("utf-8")
     user_doc = build_user(
@@ -42,21 +43,28 @@ def login_user(data):
 
     user = find_by_email(data["correo"])
     if not user:
-        return None, "Credenciales inválidas"
+        return None, "Credenciales invalidas"
 
     if not bcrypt.check_password_hash(user["password"], data["password"]):
-        return None, "Credenciales inválidas"
+        return None, "Credenciales invalidas"
 
-    if user.get("estado") != "activo":
-        return None, "Cuenta inactiva"
+    if user.get("estado") == "suspendido":
+        return None, "Cuenta suspendida. Contacta al administrador."
 
-    token = create_access_token(identity=str(user["_id"]))
-    increment_login(str(user["_id"]))
-    return {"token": token, "rol": normalize_role(user["rol"]), "plan": user["plan"]}, None
+    user_id = str(user["_id"])
+    token = create_access_token(identity=user_id)
+    was_reactivated = increment_login(user_id)
+    return {
+        "token": token,
+        "rol": normalize_role(user["rol"]),
+        "plan": user["plan"],
+        "wasReactivated": bool(was_reactivated),
+    }, None
 
 
 def get_me(user_id):
     from app.database.mongo import get_db
+
     user = get_db().users.find_one({"_id": ObjectId(user_id)})
     if not user:
         return None, "Usuario no encontrado"
@@ -71,36 +79,32 @@ def google_login_user(data):
         return None, "Token de Google es requerido"
 
     try:
-        from google.oauth2 import id_token
         from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+
         from app.config.config import Config
 
-        # Verificar el token con Google
         id_info = id_token.verify_oauth2_token(token, google_requests.Request(), Config.GOOGLE_CLIENT_ID)
 
-        # Validar el emisor
-        if id_info['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-            return None, "Emisor de token inválido"
+        if id_info["iss"] not in ["accounts.google.com", "https://accounts.google.com"]:
+            return None, "Emisor de token invalido"
 
-        email = id_info.get('email')
+        email = id_info.get("email")
         if not email:
             return None, "No se pudo obtener el correo de Google"
 
-        # Comprobar si el usuario existe
         user = find_by_email(email)
         if not user:
-            # Si el usuario no existe, lo creamos
-            nombre = id_info.get('given_name') or 'Usuario'
-            apellido = id_info.get('family_name') or 'Google'
+            nombre = id_info.get("given_name") or "Usuario"
+            apellido = id_info.get("family_name") or "Google"
 
-            # El rol por defecto es productor
             user_doc = build_user(
                 nombre=nombre,
                 apellido=apellido,
                 correo=email,
-                password_hash="",  # Sin contraseña (login por Google)
+                password_hash="",
                 telefono="",
-                rol="productor"
+                rol="productor",
             )
             user_doc["googleLogin"] = True
 
@@ -111,21 +115,20 @@ def google_login_user(data):
             user_id = str(user["_id"])
             is_new_user = False
 
-        if user.get("estado") != "activo":
-            return None, "Cuenta inactiva"
+        if user.get("estado") == "suspendido":
+            return None, "Cuenta suspendida. Contacta al administrador."
 
-        # Generar token JWT de la aplicación
         app_token = create_access_token(identity=user_id)
-        increment_login(user_id)
+        was_reactivated = increment_login(user_id)
         return {
             "token": app_token,
             "rol": normalize_role(user["rol"]),
             "plan": user.get("plan", "basico"),
-            "isNewUser": is_new_user
+            "isNewUser": is_new_user,
+            "wasReactivated": bool(was_reactivated),
         }, None
 
     except ValueError as e:
-        return None, f"Token de Google inválido: {str(e)}"
+        return None, f"Token de Google invalido: {str(e)}"
     except Exception as e:
         return None, f"Error en login de Google: {str(e)}"
-

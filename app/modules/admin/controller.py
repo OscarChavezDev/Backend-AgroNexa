@@ -2,7 +2,9 @@ from flask import request
 from flask_jwt_extended import get_jwt_identity
 from app.modules.admin.service import (
     list_all_users, get_user_detail, change_user_status,
-    delete_user, get_stats, get_user_parcelas,
+    delete_user, get_stats, get_user_parcelas, get_user_historial,
+    get_reingresos, get_actividad_temporal,
+    INACTIVIDAD_DIAS,
 )
 from app.modules.auth.models import build_role_filter
 from app.middleware.role_middleware import role_required
@@ -167,6 +169,35 @@ def parcelas_usuario(user_id):
 
 
 @role_required("admin")
+def historial_usuario(user_id):
+    """
+    Historial de cambios de estado de un usuario
+    ---
+    tags:
+      - Admin
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: user_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Historial obtenido (más reciente primero)
+      404:
+        description: Usuario no encontrado
+    """
+    result, err = get_user_historial(user_id)
+    if err:
+        return error_response(err, status=404)
+    return success_response(
+        f"Historial obtenido. Regla activa: inactividad automática tras {INACTIVIDAD_DIAS} días sin acceso.",
+        result,
+    )
+
+
+@role_required("admin")
 def estadisticas():
     """
     Estadísticas generales de la plataforma
@@ -185,3 +216,31 @@ def estadisticas():
     if err:
         return error_response(err)
     return success_response("Estadísticas obtenidas", result)
+
+
+@role_required("admin")
+def reingresos_usuarios():
+    """
+    Historial de reingresos: usuarios que volvieron a iniciar sesión
+    tras haber sido marcados como inactivos automáticamente.
+    ---
+    tags:
+      - Admin
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Lista de eventos de reingreso (reactivado_automatico)
+    """
+    result, err = get_reingresos()
+    if err:
+        return error_response(err)
+    return success_response("Reingresos obtenidos", result)
+
+
+@role_required("admin")
+def actividad_temporal():
+    result, err = get_actividad_temporal()
+    if err:
+        return error_response(err)
+    return success_response("Actividad temporal obtenida", result)
