@@ -64,16 +64,32 @@ def listar_imagenes(muestra_id, user_id):
     ], None
 
 
-PROMPT_VALIDACION = """Analiza esta imagen y determina si está relacionada con agricultura, cultivos, plantas o diagnóstico fitosanitario.
+PROMPT_VALIDACION = """Eres un sistema de validación estricto para un software de diagnóstico fitosanitario de cultivos de cacao.
+
+Analiza esta imagen y determina con criterio ESTRICTO si es apta para diagnóstico de enfermedades en plantas o cultivos.
 
 RESPONDE SOLO con JSON válido, sin texto extra ni markdown:
 {
   "relevante": true,
-  "motivo": "descripción breve de lo que muestra la imagen"
+  "motivo": "descripción concisa de lo que muestra la imagen y por qué es o no es válida"
 }
 
-Considera RELEVANTE (true): plantas, hojas, frutos, cultivos, suelo agrícola, síntomas en vegetación, raíces, tallos.
-Considera NO RELEVANTE (false): personas, selfies, animales sin relación agrícola, objetos, paisajes urbanos, documentos, capturas de pantalla."""
+VÁLIDA (relevante: true) — SOLO si muestra claramente:
+- Hojas, frutos, tallos, raíces o flores de plantas con o sin síntomas visibles
+- Tejido vegetal en primer plano o plano medio
+- Síntomas fitosanitarios: manchas, pudrición, deformaciones, plagas sobre la planta
+
+NO VÁLIDA (relevante: false) — si muestra cualquiera de estos casos:
+- Personas, retratos, selfies
+- Maquinaria agrícola, tractores, herramientas (aunque estén en campo)
+- Paisajes amplios de campo sin primer plano vegetal
+- Capturas de pantalla, documentos, tablas, texto
+- Animales, insectos sueltos sin planta visible
+- Objetos, edificios, suelo sin planta
+- Imágenes borrosas o irreconocibles
+- Cualquier imagen que NO permita evaluar el estado fitosanitario de una planta
+
+Ante la duda: responde relevante: false. Es mejor rechazar que aceptar algo incorrecto."""
 
 
 def validar_imagen_agricola(imagen_bytes, mime_type):

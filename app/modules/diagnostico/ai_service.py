@@ -50,14 +50,26 @@ RESPONDE SOLO con JSON válido, sin texto extra, sin markdown:
   "sintomas_detectados": ["síntoma 1", "síntoma 2"],
   "factores_riesgo": ["factor 1"],
   "recomendaciones": {{
-    "acciones_inmediatas": ["acción urgente"],
-    "tratamiento": ["tratamiento recomendado"],
-    "prevencion": ["medida preventiva"],
-    "monitoreo": "frecuencia y qué observar"
+    "acciones_inmediatas": [
+      "Acción concreta y urgente relacionada directamente con los síntomas detectados (ej: 'Retirar y quemar los frutos con manchas oscuras para evitar la dispersión de esporas')"
+    ],
+    "tratamiento": [
+      "Producto o método específico con dosis o frecuencia (ej: 'Aplicar fungicida a base de cobre, 2-3 g/L, cada 15 días durante 2 meses')"
+    ],
+    "prevencion": [
+      "Medida preventiva específica para la enfermedad detectada y las condiciones del suelo observadas"
+    ],
+    "monitoreo": "Indicar exactamente qué síntoma vigilar, con qué frecuencia y en qué parte de la planta, basado en la enfermedad diagnosticada"
   }},
   "requiere_asistencia_tecnica": false,
-  "notas_adicionales": "observación extra o vacío"
+  "notas_adicionales": "Mencionar si el pH, humedad u otros datos del sensor favorecen o agravan la condición detectada"
 }}
+
+IMPORTANTE para las recomendaciones:
+- Si no hay enfermedad: dar recomendaciones de mantenimiento preventivo específicas para el cacao saludable.
+- Si hay enfermedad: cada recomendación debe mencionar el nombre de la enfermedad o síntoma específico encontrado.
+- Monitoreo: nunca ser genérico — indicar parte de la planta, frecuencia exacta, síntoma puntual a vigilar.
+- Tratamiento: incluir nombre del producto activo cuando sea posible.
 
 Valores exactos — confianza: "alta", "media" o "baja".
 Severidad nivel: "leve", "moderado", "severo" o "crítico".
