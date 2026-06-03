@@ -12,7 +12,10 @@ def serialize_doc(doc):
         if isinstance(value, ObjectId):
             doc[key] = str(value)
         elif isinstance(value, datetime):
-            doc[key] = value.isoformat()
+            if value.tzinfo is None:
+                doc[key] = value.isoformat() + "Z"
+            else:
+                doc[key] = value.isoformat()
         elif isinstance(value, list):
             doc[key] = [_serialize_value(v) for v in value]
         elif isinstance(value, dict):
@@ -31,6 +34,8 @@ def _serialize_value(v):
     if isinstance(v, ObjectId):
         return str(v)
     if isinstance(v, datetime):
+        if v.tzinfo is None:
+            return v.isoformat() + "Z"
         return v.isoformat()
     if isinstance(v, dict):
         return _serialize_nested(v)
