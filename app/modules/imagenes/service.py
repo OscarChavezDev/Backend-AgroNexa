@@ -64,32 +64,34 @@ def listar_imagenes(muestra_id, user_id):
     ], None
 
 
-PROMPT_VALIDACION = """Eres un sistema de validación estricto para un software de diagnóstico fitosanitario de cultivos de cacao.
+PROMPT_VALIDACION = """Eres un sistema de validación ESTRICTO para un software de diagnóstico fitosanitario EXCLUSIVO de cacao (Theobroma cacao).
 
-Analiza esta imagen y determina con criterio ESTRICTO si es apta para diagnóstico de enfermedades en plantas o cultivos.
+Tu única tarea: determinar si la imagen muestra una parte de una planta de CACAO apta para diagnóstico.
 
 RESPONDE SOLO con JSON válido, sin texto extra ni markdown:
 {
   "relevante": true,
-  "motivo": "descripción concisa de lo que muestra la imagen y por qué es o no es válida"
+  "motivo": "descripción concisa: qué parte de la planta se ve y si corresponde a cacao"
 }
 
-VÁLIDA (relevante: true) — SOLO si muestra claramente:
-- Hojas, frutos, tallos, raíces o flores de plantas con o sin síntomas visibles
-- Tejido vegetal en primer plano o plano medio
-- Síntomas fitosanitarios: manchas, pudrición, deformaciones, plagas sobre la planta
+VÁLIDA (relevante: true) — SOLO si la imagen muestra CLARAMENTE una de estas partes Y pertenece a una planta de CACAO:
+- Fruto/mazorca de cacao (vaina alargada, ovalada, con surcos; colores verde, amarillo, naranja, rojo o morado)
+- Hoja de cacao (grande, ovalada-alargada, nervadura marcada; brotes rojizos cuando son jóvenes)
+- Tallo o rama de cacao (corteza, posibles cojines florales)
+- Raíz de cacao
+- Flor de cacao (pequeñas, blancas/rosadas, sobre el tronco o ramas — cauliflora)
+- Planta completa / árbol de cacao
 
-NO VÁLIDA (relevante: false) — si muestra cualquiera de estos casos:
-- Personas, retratos, selfies
-- Maquinaria agrícola, tractores, herramientas (aunque estén en campo)
-- Paisajes amplios de campo sin primer plano vegetal
-- Capturas de pantalla, documentos, tablas, texto
-- Animales, insectos sueltos sin planta visible
-- Objetos, edificios, suelo sin planta
-- Imágenes borrosas o irreconocibles
-- Cualquier imagen que NO permita evaluar el estado fitosanitario de una planta
+NO VÁLIDA (relevante: false) — rechaza SIEMPRE si:
+- La parte vegetal NO es de cacao (otro cultivo: café, plátano, maíz, palta, mango, cítricos, etc.). Indica en el motivo qué planta parece ser.
+- No se distingue con seguridad que sea cacao
+- Personas, animales, insectos sueltos, maquinaria, herramientas, objetos, edificios
+- Capturas de pantalla, documentos, texto, dibujos
+- Paisajes amplios sin una parte de cacao en primer plano
+- Suelo, agua o cielo sin planta de cacao identificable
+- Imágenes borrosas, oscuras o irreconocibles
 
-Ante la duda: responde relevante: false. Es mejor rechazar que aceptar algo incorrecto."""
+REGLA CLAVE: si NO puedes confirmar que es cacao, responde relevante: false. Es preferible rechazar una imagen dudosa que aceptar un cultivo equivocado. El motivo debe ser breve y claro (ej: "Hoja de plátano, no es cacao" o "Mazorca de cacao en buen plano")."""
 
 
 def validar_imagen_agricola(imagen_bytes, mime_type):
