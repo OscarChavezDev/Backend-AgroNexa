@@ -1,6 +1,11 @@
 import re
 
 
+def normalize_email(email: str) -> str:
+    """Normaliza el correo para comparaciones y almacenamiento consistentes."""
+    return (email or "").strip().lower()
+
+
 def is_valid_email(email: str) -> bool:
     return bool(re.match(r"^[\w\.-]+@[\w\.-]+\.\w{2,}$", email))
 

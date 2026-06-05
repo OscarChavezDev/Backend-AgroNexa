@@ -64,9 +64,9 @@ def listar_imagenes(muestra_id, user_id):
     ], None
 
 
-PROMPT_VALIDACION = """Eres un sistema de validación ESTRICTO para un software de diagnóstico fitosanitario EXCLUSIVO de cacao (Theobroma cacao).
+PROMPT_VALIDACION = """Eres un sistema de validación para un software de diagnóstico fitosanitario de cacao (Theobroma cacao).
 
-Tu única tarea: determinar si la imagen muestra una parte de una planta de CACAO apta para diagnóstico.
+Tu única tarea: determinar si la imagen muestra una parte de una planta de CACAO apta para diagnóstico. RECUERDA: el propósito del sistema es diagnosticar cacao ENFERMO, así que las imágenes con enfermedad, hongos, pudrición o deformación son EXACTAMENTE lo que se espera recibir, NO motivo de rechazo.
 
 RESPONDE SOLO con JSON válido, sin texto extra ni markdown:
 {
@@ -74,24 +74,30 @@ RESPONDE SOLO con JSON válido, sin texto extra ni markdown:
   "motivo": "descripción concisa: qué parte de la planta se ve y si corresponde a cacao"
 }
 
-VÁLIDA (relevante: true) — SOLO si la imagen muestra CLARAMENTE una de estas partes Y pertenece a una planta de CACAO:
-- Fruto/mazorca de cacao (vaina alargada, ovalada, con surcos; colores verde, amarillo, naranja, rojo o morado)
-- Hoja de cacao (grande, ovalada-alargada, nervadura marcada; brotes rojizos cuando son jóvenes)
-- Tallo o rama de cacao (corteza, posibles cojines florales)
-- Raíz de cacao
-- Flor de cacao (pequeñas, blancas/rosadas, sobre el tronco o ramas — cauliflora)
-- Planta completa / árbol de cacao
+VÁLIDA (relevante: true) — si la imagen muestra una de estas partes de una planta de CACAO, SANA O ENFERMA:
+- Fruto/mazorca de cacao (vaina alargada, ovalada, con surcos; colores verde, amarillo, naranja, rojo o morado), AUNQUE esté deformada, podrida, manchada o cubierta de hongo.
+- Hoja de cacao (grande, ovalada-alargada, nervadura marcada; brotes rojizos cuando son jóvenes), aunque tenga manchas, necrosis o esté seca.
+- Tallo o rama de cacao (corteza, posibles cojines florales), aunque presente lesiones o proliferación de brotes.
+- Raíz de cacao.
+- Flor de cacao (pequeñas, blancas/rosadas, sobre el tronco o ramas — cauliflora).
+- Planta completa / árbol de cacao.
 
-NO VÁLIDA (relevante: false) — rechaza SIEMPRE si:
-- La parte vegetal NO es de cacao (otro cultivo: café, plátano, maíz, palta, mango, cítricos, etc.). Indica en el motivo qué planta parece ser.
-- No se distingue con seguridad que sea cacao
-- Personas, animales, insectos sueltos, maquinaria, herramientas, objetos, edificios
-- Capturas de pantalla, documentos, texto, dibujos
-- Paisajes amplios sin una parte de cacao en primer plano
-- Suelo, agua o cielo sin planta de cacao identificable
-- Imágenes borrosas, oscuras o irreconocibles
+IMPORTANTE — NO confundas la ENFERMEDAD con "no es cacao":
+- Una mazorca con Moniliasis se cubre de un POLVO o capa BLANCA-CREMA (esporulación del hongo) sobre manchas marrones. Sigue siendo una mazorca de cacao válida; NO es "un hongo creciendo en un tronco".
+- La pudrición parda/negra (Phytophthora) ennegrece la mazorca: sigue siendo cacao válido.
+- La escoba de bruja deforma frutos y brotes: sigue siendo cacao válido.
+- Si reconoces la FORMA de una mazorca, hoja, rama o árbol de cacao (aunque esté muy afectada por hongo, pudrición o deformación), responde relevante: true e indica en el motivo que parece cacao enfermo.
 
-REGLA CLAVE: si NO puedes confirmar que es cacao, responde relevante: false. Es preferible rechazar una imagen dudosa que aceptar un cultivo equivocado. El motivo debe ser breve y claro (ej: "Hoja de plátano, no es cacao" o "Mazorca de cacao en buen plano")."""
+NO VÁLIDA (relevante: false) — rechaza solo si:
+- La parte vegetal es CLARAMENTE de otro cultivo (café, plátano, maíz, palta, mango, cítricos, etc.). Indica en el motivo qué planta parece ser.
+- Personas, animales, insectos sueltos, maquinaria, herramientas, objetos, edificios.
+- Capturas de pantalla, documentos, texto, dibujos.
+- Paisajes amplios sin una parte de cacao en primer plano.
+- Suelo, agua o cielo sin planta de cacao identificable.
+- Un hongo/seta aislado SIN forma reconocible de fruto, hoja o rama de cacao alrededor.
+- Imágenes tan borrosas u oscuras que no se distingue ninguna forma.
+
+REGLA CLAVE: ante la duda entre "cacao enfermo" y "no es cacao", prioriza ACEPTAR (relevante: true) si hay cualquier forma reconocible de mazorca, hoja, rama o árbol de cacao. Es preferible aceptar una mazorca muy enferma que rechazarla por la enfermedad. El motivo debe ser breve y claro (ej: "Mazorca de cacao con moniliasis avanzada" o "Hoja de plátano, no es cacao")."""
 
 
 def validar_imagen_agricola(imagen_bytes, mime_type):
