@@ -4,6 +4,7 @@ from app.modules.diagnostico.models import build_diagnostico_ia
 from app.modules.diagnostico import repository as repo
 from app.modules.muestras.repository import find_by_id_and_user, update as update_muestra
 from app.modules.imagenes.repository import find_by_muestra as find_imagenes
+from app.modules.parcelas.repository import find_by_id as find_parcela_by_id
 from app.utils.helpers import serialize_doc
 
 logger = logging.getLogger(__name__)
@@ -11,10 +12,8 @@ logger = logging.getLogger(__name__)
 
 def _nombre_parcela(parcela_id):
     try:
-        from app.database.mongo import get_db
-        from bson import ObjectId
-        parcela = get_db().parcelas.find_one({"_id": ObjectId(str(parcela_id))})
-        return (parcela or {}).get("nombre", "") if parcela else ""
+        parcela = find_parcela_by_id(str(parcela_id))
+        return (parcela or {}).get("nombre", "")
     except Exception:
         return ""
 

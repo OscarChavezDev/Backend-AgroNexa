@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from app.database.mongo import get_db
+from app.modules.admin import repository as repo
 from app.modules.auth.models import normalize_role
 from app.utils.helpers import serialize_doc, now_utc
 from bson import ObjectId
@@ -16,24 +16,23 @@ def aplicar_inactividad_automatica():
     2. Repara entradas antiguas con fecha incorrecta: si el evento inactivado_automatico
        tiene fecha = updatedAt (detectada hoy en vez del lastLogin real), la corrige.
     """
-    db     = get_db()
     ts     = now_utc()
     limite = ts - timedelta(days=INACTIVIDAD_DIAS)
 
     # ── 1. Nuevos candidatos ─────────────────────────────────────────────────
-    candidatos = list(db.users.find({
+    candidatos = repo.find_users({
         "estado": "activo",
         "rol":    {"$ne": "admin"},
         "$or": [
             {"lastLogin": {"$lt": limite}},
             {"lastLogin": {"$exists": False}, "createdAt": {"$lt": limite}},
         ],
-    }, {"_id": 1, "lastLogin": 1, "createdAt": 1}))
+    }, {"_id": 1, "lastLogin": 1, "createdAt": 1})
 
     for u in candidatos:
         fecha_inactivacion = u.get("lastLogin") or u.get("createdAt") or ts
-        db.users.update_one(
-            {"_id": u["_id"]},
+        repo.update_user(
+            u["_id"],
             {
                 "$set": {
                     "estado":         "inactivo",
@@ -53,11 +52,11 @@ def aplicar_inactividad_automatica():
     # ── 2. Reparar entradas antiguas con fecha = updatedAt (código anterior) ─
     # Detectar: evento inactivado_automatico cuya fecha es igual a updatedAt
     # (se guardó "ahora" en vez del lastLogin real). Corregirla con lastLogin.
-    ya_inactivos = list(db.users.find(
+    ya_inactivos = repo.find_users(
         {"estado": "inactivo", "inactivadoAuto": True, "rol": {"$ne": "admin"},
          "historialEstado": {"$elemMatch": {"tipo": "inactivado_automatico"}}},
         {"_id": 1, "lastLogin": 1, "createdAt": 1, "updatedAt": 1, "historialEstado": 1}
-    ))
+    )
 
     for u in ya_inactivos:
         historial  = u.get("historialEstado") or []
@@ -79,10 +78,7 @@ def aplicar_inactividad_automatica():
             nuevos.append(h)
 
         if reparado:
-            db.users.update_one(
-                {"_id": u["_id"]},
-                {"$set": {"historialEstado": nuevos}}
-            )
+            repo.update_user(u["_id"], {"$set": {"historialEstado": nuevos}})
 
     return len(candidatos)
 
@@ -91,7 +87,6 @@ def list_all_users(filters=None):
     # Aplica la regla de inactividad antes de devolver la lista
     aplicar_inactividad_automatica()
 
-    db = get_db()
     query = filters or {}
 
     pipeline = [
@@ -123,15 +118,14 @@ def list_all_users(filters=None):
         {"$sort": {"createdAt": -1}},
     ]
 
-    users = list(db.users.aggregate(pipeline))
+    users = repo.aggregate_users(pipeline)
     for u in users:
         u["rol"] = normalize_role(u.get("rol"))
     return [serialize_doc(u) for u in users], None
 
 
 def get_user_detail(user_id):
-    db = get_db()
-    user = db.users.find_one({"_id": ObjectId(user_id)})
+    user = repo.find_user_by_id(user_id)
     if not user:
         return None, "Usuario no encontrado"
     user.pop("password", None)
@@ -142,15 +136,14 @@ def get_user_detail(user_id):
 def change_user_status(user_id, estado):
     if estado not in VALID_ESTADOS:
         return None, f"Estado inválido. Debe ser uno de: {', '.join(VALID_ESTADOS)}"
-    db  = get_db()
     ts  = now_utc()
     tipo_map = {
         "activo":     "activado_manual",
         "inactivo":   "inactivado_manual",
         "suspendido": "suspendido_manual",
     }
-    result = db.users.update_one(
-        {"_id": ObjectId(user_id)},
+    result = repo.update_user(
+        user_id,
         {
             "$set": {
                 "estado":         estado,
@@ -172,8 +165,7 @@ def change_user_status(user_id, estado):
 
 
 def delete_user(user_id):
-    db = get_db()
-    result = db.users.delete_one({"_id": ObjectId(user_id), "rol": {"$ne": "admin"}})
+    result = repo.delete_non_admin_user(user_id)
     if result.deleted_count == 0:
         return None, "Usuario no encontrado o no se puede eliminar un administrador"
     return {"id": user_id}, None
@@ -181,8 +173,7 @@ def delete_user(user_id):
 
 def get_user_historial(user_id):
     """Devuelve el historial de cambios de estado de un usuario, más reciente primero."""
-    db   = get_db()
-    user = db.users.find_one({"_id": ObjectId(user_id)}, {"historialEstado": 1, "estado": 1})
+    user = repo.find_user_by_id(user_id, {"historialEstado": 1, "estado": 1})
     if not user:
         return None, "Usuario no encontrado"
     historial = user.get("historialEstado") or []
@@ -197,7 +188,6 @@ def _serialize_historial(entry):
 
 
 def get_user_parcelas(user_id):
-    db = get_db()
     pipeline = [
         {"$match": {"userId": ObjectId(user_id), "estado": {"$ne": "eliminado"}}},
         {"$lookup": {
@@ -219,7 +209,7 @@ def get_user_parcelas(user_id):
         {"$project": {"_m": 0, "_d": 0}},
         {"$sort": {"nombre": 1}},
     ]
-    parcelas = list(db.parcelas.aggregate(pipeline))
+    parcelas = repo.aggregate_parcelas(pipeline)
     return [serialize_doc(p) for p in parcelas], None
 
 
@@ -231,7 +221,6 @@ def get_actividad_temporal():
     - registros:   usuarios registrados por día (últimos 90 días)
     """
     from datetime import datetime, timezone, date
-    db = get_db()
 
     # ── Por día de semana (muestras) ───────────────────────────────────────────
     pipeline_dia = [
@@ -239,7 +228,7 @@ def get_actividad_temporal():
         {"$group": {"_id": {"$dayOfWeek": "$createdAt"}, "count": {"$sum": 1}}},
         {"$sort": {"_id": 1}}
     ]
-    raw_dias = {d["_id"]: d["count"] for d in db.muestras.aggregate(pipeline_dia)}
+    raw_dias = {d["_id"]: d["count"] for d in repo.aggregate_muestras(pipeline_dia)}
     nombres  = {1: "Dom", 2: "Lun", 3: "Mar", 4: "Mié", 5: "Jue", 6: "Vie", 7: "Sáb"}
     por_dia  = [{"dia": nombres[i], "count": raw_dias.get(i, 0)} for i in range(1, 8)]
 
@@ -260,7 +249,7 @@ def get_actividad_temporal():
     meses_es = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
                 "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
     por_mes  = []
-    for m in db.muestras.aggregate(pipeline_mes):
+    for m in repo.aggregate_muestras(pipeline_mes):
         y, mo = m["_id"]["year"], m["_id"]["month"]
         por_mes.append({"mes": f"{meses_es[mo-1]} {str(y)[2:]}", "count": m["count"]})
 
@@ -282,7 +271,7 @@ def get_actividad_temporal():
     ]
     raw_reg = {
         date(r["_id"]["y"], r["_id"]["m"], r["_id"]["d"]): r["count"]
-        for r in db.users.aggregate(pipeline_reg)
+        for r in repo.aggregate_users(pipeline_reg)
     }
 
     # Construir serie completa día a día (sin huecos)
@@ -298,13 +287,12 @@ def get_actividad_temporal():
 
 
 def get_stats():
-    db = get_db()
-    total_usuarios = db.users.count_documents({"rol": {"$ne": "admin"}})
-    activos = db.users.count_documents({"rol": {"$ne": "admin"}, "estado": "activo"})
-    inactivos = db.users.count_documents({"rol": {"$ne": "admin"}, "estado": "inactivo"})
-    total_parcelas = db.parcelas.count_documents({"estado": "activo"})
-    total_muestras = db.muestras.count_documents({"estado": {"$ne": "eliminado"}})
-    total_diagnosticos = db.diagnosticos.count_documents({})
+    total_usuarios = repo.count_users({"rol": {"$ne": "admin"}})
+    activos = repo.count_users({"rol": {"$ne": "admin"}, "estado": "activo"})
+    inactivos = repo.count_users({"rol": {"$ne": "admin"}, "estado": "inactivo"})
+    total_parcelas = repo.count_parcelas({"estado": "activo"})
+    total_muestras = repo.count_muestras({"estado": {"$ne": "eliminado"}})
+    total_diagnosticos = repo.count_diagnosticos({})
     return {
         "usuarios": {"total": total_usuarios, "activos": activos, "inactivos": inactivos},
         "parcelas": total_parcelas,
@@ -319,11 +307,10 @@ def get_reingresos():
     Ordenado más reciente primero.
     """
     from app.utils.helpers import _serialize_value
-    db = get_db()
-    usuarios = list(db.users.find(
+    usuarios = repo.find_users(
         {"rol": {"$ne": "admin"}, "historialEstado": {"$exists": True, "$ne": []}},
         {"password": 0}
-    ))
+    )
 
     eventos = []
     for u in usuarios:

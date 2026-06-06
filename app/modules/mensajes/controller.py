@@ -4,11 +4,9 @@ from app.modules.mensajes.service import (
     enviar_feedback, listar_mensajes, conteo,
     marcar_leido, marcar_todos_leidos
 )
-from app.modules.auth.repository import find_by_email
-from app.database.mongo import get_db
+from app.modules.auth.repository import find_by_id
 from app.utils.response import success_response, error_response
 from app.middleware.role_middleware import role_required
-from bson import ObjectId
 
 
 def enviar():
@@ -17,7 +15,7 @@ def enviar():
     mensaje_texto = data.get("mensaje", "")
 
     # Obtener datos del usuario para personalizar la notificación
-    user = get_db().users.find_one({"_id": ObjectId(user_id)}, {"nombre": 1, "apellido": 1, "correo": 1})
+    user = find_by_id(user_id)
     if not user:
         return error_response("Usuario no encontrado", status=404)
 

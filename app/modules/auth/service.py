@@ -1,10 +1,9 @@
-from bson import ObjectId
 from flask_jwt_extended import create_access_token
 from pymongo.errors import DuplicateKeyError
 
 from app.extensions.bcrypt import bcrypt
 from app.modules.auth.models import ROLES, build_user, normalize_role
-from app.modules.auth.repository import create_user, find_by_email, increment_login
+from app.modules.auth.repository import create_user, find_by_email, find_by_id, increment_login
 from app.utils.helpers import serialize_doc
 from app.utils.validators import is_valid_email, normalize_email, required_fields
 
@@ -117,9 +116,7 @@ def login_user(data):
 
 
 def get_me(user_id):
-    from app.database.mongo import get_db
-
-    user = get_db().users.find_one({"_id": ObjectId(user_id)})
+    user = find_by_id(user_id)
     if not user:
         return None, "Usuario no encontrado"
     user.pop("password", None)

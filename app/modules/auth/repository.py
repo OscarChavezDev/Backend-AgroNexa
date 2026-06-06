@@ -8,6 +8,10 @@ def find_by_email(correo):
     return get_db().users.find_one({"correo": correo})
 
 
+def find_by_id(user_id):
+    return get_db().users.find_one({"_id": ObjectId(user_id)})
+
+
 def create_user(user_doc):
     result = get_db().users.insert_one(user_doc)
     return str(result.inserted_id)
