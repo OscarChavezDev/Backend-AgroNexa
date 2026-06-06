@@ -16,7 +16,7 @@ def seed_planes(planes_data):
     for plan in planes_data:
         db.planes.update_one(
             {"codigo": plan["codigo"]},
-            {"$setOnInsert": plan},
+            {"$set": plan},
             upsert=True,
         )
 
