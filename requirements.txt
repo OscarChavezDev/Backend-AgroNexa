@@ -12,3 +12,4 @@ google-auth
 google-generativeai
 requests
 groq
+gunicorn
