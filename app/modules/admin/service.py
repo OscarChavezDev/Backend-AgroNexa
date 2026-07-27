@@ -6,7 +6,7 @@ from app.utils.helpers import serialize_doc, now_utc
 from bson import ObjectId
 
 VALID_ESTADOS    = ("activo", "inactivo", "suspendido")
-INACTIVIDAD_DIAS = 14   # días sin actividad para marcar inactivo
+INACTIVIDAD_DIAS = 55   # días sin actividad para marcar inactivo
 
 
 def aplicar_inactividad_automatica():
