@@ -3,7 +3,7 @@ from flask_jwt_extended import get_jwt_identity
 from app.modules.admin.service import (
     list_all_users, get_user_detail, change_user_status,
     delete_user, get_stats, get_user_parcelas, get_user_historial,
-    get_reingresos, get_actividad_temporal,
+    get_reingresos, get_actividad_temporal, reconciliar_inactividad,
     INACTIVIDAD_DIAS,
 )
 from app.modules.auth.models import build_role_filter
@@ -116,6 +116,28 @@ def cambiar_estado_usuario(user_id):
     if err:
         return error_response(err, status=404)
     return success_response("Estado del usuario actualizado", result)
+
+
+@role_required("admin")
+def reconciliar_inactividad_usuarios():
+    """
+    Reactiva usuarios inactivados automáticamente cuya última actividad
+    real cae dentro del umbral de INACTIVIDAD_DIAS vigente. Útil de forma
+    puntual tras ampliar el umbral, para corregir a quienes quedaron
+    marcados 'inactivo' bajo un umbral anterior más corto.
+    ---
+    tags:
+      - Admin
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Reconciliación aplicada
+      403:
+        description: Acceso no autorizado
+    """
+    total = reconciliar_inactividad()
+    return success_response(f"{total} usuario(s) reactivado(s)", {"reactivados": total})
 
 
 @role_required("admin")

@@ -83,6 +83,47 @@ def aplicar_inactividad_automatica():
     return len(candidatos)
 
 
+def reconciliar_inactividad():
+    """
+    Reactiva usuarios que quedaron marcados 'inactivo' bajo un umbral de
+    INACTIVIDAD_DIAS anterior (más corto), pero cuya última actividad real
+    SÍ cae dentro de la ventana vigente. Uso puntual tras ampliar el umbral.
+    """
+    ts     = now_utc()
+    limite = ts - timedelta(days=INACTIVIDAD_DIAS)
+
+    candidatos = repo.find_users({
+        "estado":         "inactivo",
+        "inactivadoAuto": True,
+        "rol":            {"$ne": "admin"},
+        "$or": [
+            {"lastLogin": {"$gte": limite}},
+            {"lastLogin": {"$exists": False}, "createdAt": {"$gte": limite}},
+        ],
+    }, {"_id": 1})
+
+    for u in candidatos:
+        repo.update_user(
+            u["_id"],
+            {
+                "$set": {
+                    "estado":         "activo",
+                    "inactivadoAuto": False,
+                    "updatedAt":      ts,
+                },
+                "$push": {
+                    "historialEstado": {
+                        "tipo":   "reactivado_ajuste_regla",
+                        "fecha":  ts,
+                        "motivo": f"Reactivado: su actividad cae dentro del nuevo umbral de {INACTIVIDAD_DIAS} días",
+                    }
+                },
+            },
+        )
+
+    return len(candidatos)
+
+
 def list_all_users(filters=None):
     # Aplica la regla de inactividad antes de devolver la lista
     aplicar_inactividad_automatica()
