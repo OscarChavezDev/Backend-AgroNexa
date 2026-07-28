@@ -65,6 +65,8 @@ def create_app():
     from .modules.suscripciones.routes import suscripciones_bp
     from .modules.admin.routes import admin_bp
     from .modules.mensajes.routes import mensajes_bp
+    from .modules.clima.routes import clima_bp
+    from .modules.fertilizacion.routes import fertilizacion_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(users_bp, url_prefix="/api/users")
@@ -75,6 +77,8 @@ def create_app():
     app.register_blueprint(suscripciones_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
     app.register_blueprint(mensajes_bp, url_prefix="/api/mensajes")
+    app.register_blueprint(clima_bp, url_prefix="/api/clima")
+    app.register_blueprint(fertilizacion_bp, url_prefix="/api/fertilizacion")
 
     @app.after_request
     def set_coop_header(response):

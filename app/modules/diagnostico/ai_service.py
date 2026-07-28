@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 # ── Pasada 1: observación visual pura (el modelo solo MIRA, no diagnostica) ──────
 PROMPT_OBSERVACION = """Eres un fitopatólogo experto en cacao (Theobroma cacao). Observa la imagen con el MÁXIMO detalle y describe ÚNICAMENTE lo que ves. NO diagnostiques todavía, NO nombres enfermedades: solo describe signos visuales.
 
+IDIOMA (OBLIGATORIO): escribe toda la observación en español.
+
 Reporta de forma estructurada y concreta:
 1. PARTE DE LA PLANTA: ¿fruto/mazorca, hoja, tallo, brote, flor, raíz? ¿cuántos elementos y en qué estado?
 2. FORMA (CRÍTICO): ¿la forma es NORMAL (mazorca lisa, ovalada/alargada, simétrica; hoja entera y plana) o hay ANOMALÍAS? Busca y nombra explícitamente si los ves: deformaciones, gibas o jorobas, hinchazones, estrangulamientos, acostillado/surcos anormales, forma de "fresa", "zanahoria" o "chirimoya", asimetría, frutos pequeños o atrofiados, brotes engrosados, proliferación de ramas ("escobas"), hojas rizadas o deformadas. Di claramente cuando algo NO tiene la forma normal del cacao.
@@ -26,6 +28,8 @@ REGLA: cualquier desviación de la forma y color normales del cacao es relevante
 
 # ── Pasada 2: diagnóstico estructurado a partir de la observación + la imagen ─────
 PROMPT_SISTEMA = """Eres un experto fitopatólogo especializado en cultivos de cacao (Theobroma cacao).
+
+IDIOMA (OBLIGATORIO): responde ÍNTEGRAMENTE en español. Todos los valores de texto del JSON —enfermedad, descripción, razones, síntomas, factores de riesgo, recomendaciones, monitoreo y notas— deben estar en español. Solo el nombre científico va en latín. NINGÚN valor de texto puede estar en inglés.
 
 REGLA FUNDAMENTAL DEL DIAGNÓSTICO:
 - El diagnóstico debe basarse PRINCIPALMENTE en lo que OBSERVAS directamente en la IMAGEN.
@@ -122,7 +126,9 @@ RECORDATORIO FINAL: tu diagnóstico se decide por el ANÁLISIS VISUAL de la imag
 
 Valores exactos — confianza: "alta", "media" o "baja".
 Severidad nivel: "leve", "moderado", "severo" o "crítico".
-Severidad etapa: "inicial", "intermedia" o "avanzada"."""
+Severidad etapa: "inicial", "intermedia" o "avanzada".
+
+RECORDATORIO DE IDIOMA: todo el contenido de texto del JSON debe estar en ESPAÑOL, salvo el nombre científico."""
 
 
 def _descargar_imagen(url):
