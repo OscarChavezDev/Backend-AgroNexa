@@ -9,6 +9,11 @@ from groq import Groq
 
 logger = logging.getLogger(__name__)
 
+# Modelo con visión. Groq dio de baja los Llama 4 (Maverick el 09/03/2026,
+# Scout el 17/07/2026): cualquier llamada a ellos falla y el diagnóstico cae al
+# motor de reglas, que no mira la imagen. Qwen 3.6 es el reemplazo con visión.
+GROQ_VISION_MODEL_DEFAULT = "qwen/qwen3.6-27b"
+
 # ── Pasada 1: observación visual pura (el modelo solo MIRA, no diagnostica) ──────
 PROMPT_OBSERVACION = """Eres un fitopatólogo experto en cacao (Theobroma cacao). Observa la imagen con el MÁXIMO detalle y describe ÚNICAMENTE lo que ves. NO diagnostiques todavía, NO nombres enfermedades: solo describe signos visuales.
 
@@ -205,9 +210,9 @@ def analizar_con_gemini(muestra, imagenes, parcela_nombre=""):
     Retorna (resultado_json, mensaje_error, modelo_usado).
     """
     api_key = os.getenv("GROQ_API_KEY", "")
-    # Maverick (128 expertos) analiza la imagen con más detalle que Scout.
-    # Se puede sobrescribir con GROQ_MODEL en el .env.
-    model_name = os.getenv("GROQ_MODEL", "meta-llama/llama-4-maverick-17b-128e-instruct")
+    # Se puede sobrescribir con GROQ_VISION_MODEL en el .env, pero debe ser un
+    # modelo con visión: si no analiza la imagen, el diagnóstico pierde su base.
+    model_name = os.getenv("GROQ_VISION_MODEL", GROQ_VISION_MODEL_DEFAULT)
 
     if not api_key:
         return None, "GROQ_API_KEY no configurada en el archivo .env", ""

@@ -7,6 +7,10 @@ from groq import Groq
 
 logger = logging.getLogger(__name__)
 
+# Groq dio de baja llama-3.3-70b-versatile el 17/06/2026. Qwen 3.6 es el
+# reemplazo recomendado y admite modo JSON, que es lo que necesita el plan.
+GROQ_TEXT_MODEL_DEFAULT = "qwen/qwen3.6-27b"
+
 PROMPT_FERTILIZACION = """Eres un ingeniero agrónomo especialista en nutrición y fertilización de cacao (Theobroma cacao) en Perú.
 
 IDIOMA (OBLIGATORIO): responde ÍNTEGRAMENTE en español. Todos los textos del JSON —resumen, justificaciones, momentos, notas, advertencias y cronograma— deben estar en español de Perú, con la terminología agrícola que usa un productor cacaotero. Las claves del JSON van en inglés/español tal como se especifican abajo, pero NINGÚN valor de texto puede estar en inglés.
@@ -160,7 +164,7 @@ def generar_plan_ia(parcela, muestra, suelo, clima):
     Retorna (plan_json, mensaje_error, modelo_usado).
     """
     api_key = os.getenv("GROQ_API_KEY", "")
-    model_name = os.getenv("GROQ_MODEL_TEXTO", "llama-3.3-70b-versatile")
+    model_name = os.getenv("GROQ_MODEL_TEXTO", GROQ_TEXT_MODEL_DEFAULT)
 
     if not api_key:
         return None, "GROQ_API_KEY no configurada", ""

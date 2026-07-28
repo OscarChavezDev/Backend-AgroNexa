@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 TIPOS_IMAGEN = ("hoja", "fruto", "tallo", "planta_completa", "suelo")
 
+# Modelo con visión. Groq dio de baja los Llama 4 (Maverick el 09/03/2026,
+# Scout el 17/07/2026); Qwen 3.6 es el reemplazo que acepta imágenes y JSON.
+GROQ_VISION_MODEL_DEFAULT = "qwen/qwen3.6-27b"
+
 
 def subir_imagen(user_id, file, data):
     if not data.get("muestraId"):
@@ -103,18 +107,26 @@ REGLA CLAVE: ante la duda entre "cacao enfermo" y "no es cacao", prioriza ACEPTA
 def validar_imagen_agricola(imagen_bytes, mime_type):
     """
     Usa Groq para verificar si la imagen es relevante para diagnóstico agrícola.
-    Si la IA no está disponible, retorna relevante=True para no bloquear al usuario.
+
+    Si la IA no está disponible se deja pasar la imagen para no bloquear al
+    usuario, pero se marca `validado: False`. Sin esa marca la interfaz mostraría
+    "imagen aceptada" igual que si hubiera pasado el control, y el fallo quedaría
+    invisible: exactamente lo que ocurrió cuando Groq dio de baja el modelo.
     """
     api_key = os.getenv("GROQ_API_KEY", "")
     if not api_key:
-        return {"relevante": True, "motivo": "Validación no disponible (sin clave de IA)"}, None
+        return {
+            "relevante": True,
+            "validado": False,
+            "motivo": "No se pudo verificar la imagen: falta la clave de IA (GROQ_API_KEY).",
+        }, None
 
     try:
         from groq import Groq
         from app.modules.diagnostico.ai_service import _extraer_json
 
         img_b64 = base64.b64encode(imagen_bytes).decode("utf-8")
-        model_name = os.getenv("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+        model_name = os.getenv("GROQ_VISION_MODEL", GROQ_VISION_MODEL_DEFAULT)
 
         client = Groq(api_key=api_key)
         response = client.chat.completions.create(
@@ -131,13 +143,24 @@ def validar_imagen_agricola(imagen_bytes, mime_type):
         resultado = _extraer_json(texto)
         if resultado is None:
             logger.warning("Validación IA: respuesta no JSON — %s", texto[:100])
-            return {"relevante": True, "motivo": "No se pudo analizar"}, None
+            return {
+                "relevante": True,
+                "validado": False,
+                "motivo": "No se pudo verificar la imagen: la IA respondió en un formato inesperado.",
+            }, None
 
+        resultado["validado"] = True
         return resultado, None
 
     except Exception as e:
-        logger.warning("Validación IA falló (no bloqueante): %s", e)
-        return {"relevante": True, "motivo": "Validación no disponible"}, None
+        # Se registra como error (no warning) porque deja el control desactivado.
+        logger.error("Validación de imagen no disponible — modelo '%s': %s",
+                     os.getenv("GROQ_VISION_MODEL", GROQ_VISION_MODEL_DEFAULT), e)
+        return {
+            "relevante": True,
+            "validado": False,
+            "motivo": "No se pudo verificar la imagen. Revisa que la imagen corresponda a cacao.",
+        }, None
 
 
 def eliminar_imagen(user_id, imagen_id, muestra_id):
