@@ -6,6 +6,7 @@ from app.utils.validators import required_fields
 
 UPDATABLE_FIELDS = {
     "parteAfectada", "nivelAfectacion", "sintomas", "observaciones", "datosSensor",
+    "nodoId", "coordenadas",
 }
 
 
@@ -14,8 +15,16 @@ def create_muestra(user_id, data):
     if missing:
         return None, f"Campos requeridos: {', '.join(missing)}"
 
-    if not parcela_exists(data["parcelaId"], user_id):
+    parcela = parcela_exists(data["parcelaId"], user_id)
+    if not parcela:
         return None, "Parcela no encontrada o no pertenece al usuario"
+
+    # Un nodo inexistente dejaría la muestra huérfana en el mapa de suelo.
+    nodo_id = data.get("nodoId")
+    if nodo_id:
+        ids_validos = {n.get("id") for n in (parcela.get("nodos") or [])}
+        if nodo_id not in ids_validos:
+            return None, "El nodo indicado no pertenece a esta parcela"
 
     doc = build_muestra(user_id, data)
     muestra_id = repo.create(doc)

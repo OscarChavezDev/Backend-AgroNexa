@@ -12,9 +12,18 @@ SINTOMAS_VALIDOS = (
 
 def build_muestra(user_id, data):
     sensor = data.get("datosSensor") or {}
+    coords = data.get("coordenadas") or {}
     return {
         "parcelaId": ObjectId(data["parcelaId"]),
         "userId": ObjectId(user_id),
+        # Nodo de muestreo del que se extrajo. Permite ubicar en el mapa a qué
+        # zona de la parcela corresponden estas lecturas de suelo.
+        "nodoId": (str(data["nodoId"]).strip() or None) if data.get("nodoId") else None,
+        "coordenadas": (
+            {"lat": float(coords["lat"]), "lng": float(coords["lng"])}
+            if coords.get("lat") is not None and coords.get("lng") is not None
+            else None
+        ),
         "parteAfectada": data["parteAfectada"],
         "nivelAfectacion": data["nivelAfectacion"],
         "sintomas": data["sintomas"],

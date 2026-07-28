@@ -141,6 +141,112 @@ def obtener_plan(plan_id):
     return serialize_doc(doc), None
 
 
+ETIQUETAS_NUTRIENTE = {
+    "nitrogeno": "N",
+    "fosforo": "P",
+    "potasio": "K",
+}
+
+
+def _estado_nodo(suelo):
+    """
+    Semáforo del nodo a partir de su última muestra.
+
+    Un solo nutriente en nivel bajo ya compromete la cosecha, así que basta uno
+    para marcar el nodo como crítico: es lo que hace útil el mapa de un vistazo.
+    """
+    criticos = []
+    atencion = []
+
+    for clave, sigla in ETIQUETAS_NUTRIENTE.items():
+        estado = (suelo.get(clave) or {}).get("estado")
+        if estado == "bajo":
+            criticos.append(f"{sigla} bajo")
+        elif estado == "medio":
+            atencion.append(f"{sigla} medio")
+
+    estado_ph = (suelo.get("ph") or {}).get("estado")
+    if estado_ph in ("muy_acido", "muy_alcalino"):
+        criticos.append("pH fuera de rango")
+    elif estado_ph in ("acido", "alcalino"):
+        atencion.append("pH a corregir")
+
+    if criticos:
+        return "critico", ", ".join(criticos)
+    if atencion:
+        return "atencion", ", ".join(atencion)
+    return "bueno", "Niveles adecuados"
+
+
+def mapa_suelo(parcela_id, user_id):
+    """
+    Estado del suelo nodo por nodo, para pintar el mapa de la parcela.
+
+    Cada nodo se evalúa con su muestra más reciente, de modo que el mapa muestra
+    qué zona necesita atención en vez de un promedio que esconde las diferencias.
+    """
+    parcela = find_parcela(parcela_id, user_id)
+    if not parcela:
+        return None, PARCELA_NO_ENCONTRADA
+
+    muestras = find_all_by_parcela(parcela_id, user_id)  # ya vienen de la más nueva a la más vieja
+
+    ultima_por_nodo = {}
+    sin_nodo = 0
+    for muestra in muestras:
+        nodo_id = muestra.get("nodoId")
+        if not nodo_id:
+            sin_nodo += 1
+            continue
+        ultima_por_nodo.setdefault(nodo_id, muestra)
+
+    nodos = []
+    for nodo in parcela.get("nodos") or []:
+        muestra = ultima_por_nodo.get(nodo.get("id"))
+        entrada = {
+            "id": nodo.get("id"),
+            "nombre": nodo.get("nombre"),
+            "lat": nodo.get("lat"),
+            "lng": nodo.get("lng"),
+            "descripcion": nodo.get("descripcion", ""),
+        }
+
+        if muestra:
+            suelo = interpretar_suelo(muestra.get("datosSensor") or {})
+            estado, resumen = _estado_nodo(suelo)
+            entrada.update({
+                "suelo": suelo,
+                "estado": estado,
+                "resumen": resumen,
+                "ultimaMuestra": {
+                    "id": str(muestra["_id"]),
+                    "fecha": muestra.get("createdAt"),
+                },
+            })
+        else:
+            entrada.update({
+                "suelo": None,
+                "estado": "sin_datos",
+                "resumen": "Sin muestras en este nodo",
+                "ultimaMuestra": None,
+            })
+
+        nodos.append(entrada)
+
+    return {
+        "parcela": {
+            "id": parcela_id,
+            "nombre": parcela.get("nombre", ""),
+            "cultivo": parcela.get("cultivo", ""),
+            "ubicacion": parcela.get("ubicacion"),
+            "poligono": parcela.get("poligono") or [],
+        },
+        "nodos": nodos,
+        "muestrasSinNodo": sin_nodo,
+        "totalMuestras": len(muestras),
+    }, None
+
+
 def previsualizar(parcela_id, user_id):
     """
     Lectura rápida del suelo y la ventana climática, sin llamar a la IA ni guardar

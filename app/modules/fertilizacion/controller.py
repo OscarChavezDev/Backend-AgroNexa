@@ -3,7 +3,7 @@ from flask_jwt_extended import get_jwt_identity
 
 from app.modules.fertilizacion.service import (
     generar, obtener_ultimo, listar_historial, obtener_plan, previsualizar,
-    PARCELA_NO_ENCONTRADA,
+    mapa_suelo, PARCELA_NO_ENCONTRADA,
 )
 from app.utils.response import success_response, error_response
 
@@ -94,6 +94,32 @@ def preview(parcela_id):
     if err:
         return error_response(err, status=404)
     return success_response("Estado del suelo y clima obtenido", result)
+
+
+def mapa(parcela_id):
+    """
+    Estado del suelo nodo por nodo para pintar el mapa de la parcela
+    ---
+    tags:
+      - Fertilización
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: parcela_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Mapa de suelo obtenido
+      404:
+        description: Parcela no encontrada
+    """
+    user_id = get_jwt_identity()
+    result, err = mapa_suelo(parcela_id, user_id)
+    if err:
+        return error_response(err, status=404)
+    return success_response("Mapa de suelo obtenido", result)
 
 
 def historial(parcela_id):
