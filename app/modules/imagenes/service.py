@@ -134,9 +134,9 @@ def validar_imagen_agricola(imagen_bytes, mime_type):
                 {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{img_b64}"}}
             ]}],
             temperature=0.1,
-            # Los modelos de razonamiento necesitan margen: el límite corta la
-            # respuesta antes del JSON y la validación queda inservible.
-            max_tokens=1200,
+            # El JSON de respuesta son dos campos cortos. Sin razonamiento de por
+            # medio, 300 tokens sobran y acorta el tiempo de respuesta.
+            max_tokens=300,
             **opciones_razonamiento(model_name),
         )
 
