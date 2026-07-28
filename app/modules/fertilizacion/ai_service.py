@@ -1,15 +1,13 @@
 import os
-import json
 import logging
-import re
 
 from groq import Groq
 
+from app.utils.groq_utils import GROQ_MODEL_DEFAULT, opciones_razonamiento, extraer_json
+
 logger = logging.getLogger(__name__)
 
-# Groq dio de baja llama-3.3-70b-versatile el 17/06/2026. Qwen 3.6 es el
-# reemplazo recomendado y admite modo JSON, que es lo que necesita el plan.
-GROQ_TEXT_MODEL_DEFAULT = "qwen/qwen3.6-27b"
+GROQ_TEXT_MODEL_DEFAULT = GROQ_MODEL_DEFAULT
 
 PROMPT_FERTILIZACION = """Eres un ingeniero agrónomo especialista en nutrición y fertilización de cacao (Theobroma cacao) en Perú.
 
@@ -107,20 +105,6 @@ Valores exactos — prioridad: "alta", "media" o "baja". ventanaAplicacion.estad
 RECORDATORIO FINAL: todo el contenido de texto debe estar en ESPAÑOL. No uses palabras en inglés en ningún valor del JSON."""
 
 
-def _extraer_json(texto):
-    try:
-        return json.loads(texto)
-    except json.JSONDecodeError:
-        pass
-    match = re.search(r'\{[\s\S]*\}', texto)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
-    return None
-
-
 def _mensaje_amigable(exc):
     txt = str(exc).lower()
     if "429" in txt or "rate" in txt or "quota" in txt or "limit" in txt:
@@ -201,12 +185,13 @@ def generar_plan_ia(parcela, muestra, suelo, clima):
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
-            max_tokens=3000,
+            max_tokens=4000,
             top_p=0.9,
+            **opciones_razonamiento(model_name),
         )
 
         texto = (response.choices[0].message.content or "").strip()
-        plan = _extraer_json(texto)
+        plan = extraer_json(texto)
 
         if plan is None:
             logger.warning("Plan de fertilización de IA no es JSON válido: %s", texto[:200])

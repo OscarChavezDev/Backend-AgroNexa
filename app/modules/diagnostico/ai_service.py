@@ -1,18 +1,15 @@
 import os
-import json
 import logging
 import base64
-import re
 
 import requests as http_requests
 from groq import Groq
 
+from app.utils.groq_utils import GROQ_MODEL_DEFAULT, opciones_razonamiento, extraer_json
+
 logger = logging.getLogger(__name__)
 
-# Modelo con visión. Groq dio de baja los Llama 4 (Maverick el 09/03/2026,
-# Scout el 17/07/2026): cualquier llamada a ellos falla y el diagnóstico cae al
-# motor de reglas, que no mira la imagen. Qwen 3.6 es el reemplazo con visión.
-GROQ_VISION_MODEL_DEFAULT = "qwen/qwen3.6-27b"
+GROQ_VISION_MODEL_DEFAULT = GROQ_MODEL_DEFAULT
 
 # ── Pasada 1: observación visual pura (el modelo solo MIRA, no diagnostica) ──────
 PROMPT_OBSERVACION = """Eres un fitopatólogo experto en cacao (Theobroma cacao). Observa la imagen con el MÁXIMO detalle y describe ÚNICAMENTE lo que ves. NO diagnostiques todavía, NO nombres enfermedades: solo describe signos visuales.
@@ -147,18 +144,8 @@ def _descargar_imagen(url):
         return None, None
 
 
-def _extraer_json(texto):
-    try:
-        return json.loads(texto)
-    except json.JSONDecodeError:
-        pass
-    match = re.search(r'\{[\s\S]*\}', texto)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
-    return None
+# Se mantiene el nombre por compatibilidad con quien ya lo importaba.
+_extraer_json = extraer_json
 
 
 def _mensaje_amigable(exc):
@@ -192,6 +179,7 @@ def _observar_imagen(client, model_name, img_b64, mime_type):
             temperature=0.2,
             max_tokens=700,
             top_p=0.9,
+            **opciones_razonamiento(model_name),
         )
         observacion = (response.choices[0].message.content or "").strip()
         logger.info("Observación visual (pasada 1) completada: %d caracteres", len(observacion))
@@ -265,6 +253,7 @@ def analizar_con_gemini(muestra, imagenes, parcela_nombre=""):
             temperature=0.1,           # análisis más determinista y riguroso
             max_tokens=3000,
             top_p=0.9,
+            **opciones_razonamiento(model_name),
         )
 
         texto = response.choices[0].message.content.strip()

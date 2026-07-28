@@ -7,14 +7,13 @@ from bson import ObjectId
 from app.modules.muestras.repository import find_by_id_and_user
 from app.modules.imagenes import repository as repo
 from app.utils.helpers import now_utc, serialize_doc
+from app.utils.groq_utils import GROQ_MODEL_DEFAULT, opciones_razonamiento, extraer_json
 
 logger = logging.getLogger(__name__)
 
 TIPOS_IMAGEN = ("hoja", "fruto", "tallo", "planta_completa", "suelo")
 
-# Modelo con visión. Groq dio de baja los Llama 4 (Maverick el 09/03/2026,
-# Scout el 17/07/2026); Qwen 3.6 es el reemplazo que acepta imágenes y JSON.
-GROQ_VISION_MODEL_DEFAULT = "qwen/qwen3.6-27b"
+GROQ_VISION_MODEL_DEFAULT = GROQ_MODEL_DEFAULT
 
 
 def subir_imagen(user_id, file, data):
@@ -123,7 +122,6 @@ def validar_imagen_agricola(imagen_bytes, mime_type):
 
     try:
         from groq import Groq
-        from app.modules.diagnostico.ai_service import _extraer_json
 
         img_b64 = base64.b64encode(imagen_bytes).decode("utf-8")
         model_name = os.getenv("GROQ_VISION_MODEL", GROQ_VISION_MODEL_DEFAULT)
@@ -136,11 +134,14 @@ def validar_imagen_agricola(imagen_bytes, mime_type):
                 {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{img_b64}"}}
             ]}],
             temperature=0.1,
-            max_tokens=150,
+            # Los modelos de razonamiento necesitan margen: el límite corta la
+            # respuesta antes del JSON y la validación queda inservible.
+            max_tokens=1200,
+            **opciones_razonamiento(model_name),
         )
 
-        texto = response.choices[0].message.content.strip()
-        resultado = _extraer_json(texto)
+        texto = (response.choices[0].message.content or "").strip()
+        resultado = extraer_json(texto)
         if resultado is None:
             logger.warning("Validación IA: respuesta no JSON — %s", texto[:100])
             return {
