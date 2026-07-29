@@ -34,13 +34,12 @@ PROMPT_SISTEMA = """Eres un experto fitopatólogo especializado en cultivos de c
 IDIOMA (OBLIGATORIO): responde ÍNTEGRAMENTE en español. Todos los valores de texto del JSON —enfermedad, descripción, razones, síntomas, factores de riesgo, recomendaciones, monitoreo y notas— deben estar en español. Solo el nombre científico va en latín. NINGÚN valor de texto puede estar en inglés.
 
 REGLA FUNDAMENTAL DEL DIAGNÓSTICO:
-- El diagnóstico debe basarse PRINCIPALMENTE en lo que OBSERVAS directamente en la IMAGEN.
-- Examina tú mismo la imagen: identifica visualmente las lesiones, manchas, coloraciones, deformaciones, pudriciones, hongos, plagas o cualquier signo presente.
+- El diagnóstico debe basarse PRINCIPALMENTE en la OBSERVACIÓN VISUAL que aparece abajo: es el registro de lo que tú mismo viste al examinar la foto en detalle.
 - Los "síntomas reportados" por el usuario son SOLO una referencia de contexto. NO determines la enfermedad basándote en ellos. Pueden estar incompletos, ser imprecisos o estar vacíos ("Sin síntoma visible").
-- Si lo que ves en la imagen contradice los síntomas reportados, prioriza SIEMPRE tu análisis visual de la imagen.
-- En "sintomas_detectados" lista únicamente los signos que TÚ identificaste en la imagen, no los que reportó el usuario.
+- Si la observación visual contradice los síntomas reportados, prioriza SIEMPRE la observación visual.
+- En "sintomas_detectados" lista únicamente los signos que aparecen en la observación visual, no los que reportó el usuario.
 
-OBSERVACIÓN VISUAL PREVIA (la hiciste tú mismo mirando esta imagen; úsala como base de tu diagnóstico):
+OBSERVACIÓN VISUAL (tu propio examen de la foto; es la evidencia principal):
 {observacion_visual}
 
 REGLA ANTI-FALSO-NEGATIVO (MUY IMPORTANTE):
@@ -124,7 +123,7 @@ REGLAS DE LOS DIFERENCIALES:
 - Cada "razon" debe basarse en lo observado en la imagen, no en suposiciones.
 - Si la planta luce sana, el diagnóstico_principal es "ninguna enfermedad visible" con alta probabilidad, y los diferenciales pueden listar enfermedades a vigilar con baja probabilidad.
 
-RECORDATORIO FINAL: tu diagnóstico se decide por el ANÁLISIS VISUAL de la imagen, no por los síntomas que reportó el usuario. Si la imagen muestra una planta sana, diagnostica "ninguna enfermedad visible" aunque el usuario haya marcado síntomas. La confianza debe reflejar qué tan claros son los signos en la imagen.
+RECORDATORIO FINAL: tu diagnóstico se decide por la OBSERVACIÓN VISUAL, no por los síntomas que reportó el usuario. Si la observación describe una planta sana, diagnostica "ninguna enfermedad visible" aunque el usuario haya marcado síntomas. La confianza debe reflejar qué tan claros son los signos descritos en la observación.
 
 Valores exactos — confianza: "alta", "media" o "baja".
 Severidad nivel: "leve", "moderado", "severo" o "crítico".
@@ -133,11 +132,35 @@ Severidad etapa: "inicial", "intermedia" o "avanzada".
 RECORDATORIO DE IDIOMA: todo el contenido de texto del JSON debe estar en ESPAÑOL, salvo el nombre científico."""
 
 
+# Lado máximo de la imagen que se envía al modelo.
+#
+# El tier gratuito de Groq limita a 8000 tokens por minuto y una foto a
+# resolución completa consume varios miles ella sola: la petición supera el
+# límite y falla con 413 sin importar cuánto se espere. A 768 px el modelo
+# distingue igual manchas, polvo blanco y deformaciones.
+LADO_MAX_IMAGEN = 640
+
+
+def _url_reducida(url):
+    """
+    Pide a Cloudinary una versión reducida insertando la transformación en la URL.
+
+    Se resuelve en el CDN, así que no hace falta procesar la imagen aquí ni
+    añadir dependencias. Si la URL no es de Cloudinary se devuelve tal cual.
+    """
+    marca = "/image/upload/"
+    if marca not in url:
+        return url
+    antes, despues = url.split(marca, 1)
+    return f"{antes}{marca}c_limit,w_{LADO_MAX_IMAGEN},q_auto:good/{despues}"
+
+
 def _descargar_imagen(url):
     try:
-        resp = http_requests.get(url, timeout=15)
+        resp = http_requests.get(_url_reducida(url), timeout=15)
         resp.raise_for_status()
         mime = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+        logger.info("Imagen para IA: %d KB", len(resp.content) // 1024)
         return resp.content, mime
     except Exception as e:
         logger.warning("No se pudo descargar imagen: %s", e)
@@ -177,7 +200,7 @@ def _observar_imagen(client, model_name, img_b64, mime_type):
             model=model_name,
             messages=[{"role": "user", "content": content}],
             temperature=0.2,
-            max_tokens=700,
+            max_tokens=500,
             top_p=0.9,
             **opciones_razonamiento(model_name),
         )
@@ -243,15 +266,22 @@ def analizar_con_gemini(muestra, imagenes, parcela_nombre=""):
             nombre_parcela=parcela_nombre or "no especificada",
         )
 
+        # La imagen ya se analizó en la pasada 1 y su resultado viaja como texto
+        # dentro del prompt. Reenviarla aquí duplicaría el costo en tokens y la
+        # petición superaría el límite por minuto, que es lo que hacía fallar el
+        # diagnóstico con 413. Solo se adjunta si no hubo observación previa.
         content = [{"type": "text", "text": prompt}]
-        if img_b64:
+        if img_b64 and not observacion_visual:
             content.append(_bloque_imagen(img_b64, mime_type))
 
         response = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": content}],
             temperature=0.1,           # análisis más determinista y riguroso
-            max_tokens=3000,
+            # max_tokens cuenta contra el límite de tokens por minuto, no solo
+            # la entrada. Con 3000 la petición completa superaba los 8000 del
+            # tier gratuito y Groq la rechazaba con 413 antes de procesarla.
+            max_tokens=1600,
             top_p=0.9,
             **opciones_razonamiento(model_name),
         )
